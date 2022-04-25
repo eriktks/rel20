@@ -31,24 +31,33 @@ def get_gold_data(doc):
     return entities
 
 
+def compare_elements_with_offset(gold_entities, predicted_entities, predicted_links, gold_i, predicted_i, offset):
+    if offset == 0:
+        return(set(predicted_links[predicted_i + offset:]) == {-1} and 
+               gold_entities[gold_i][0].lower() == predicted_entities[predicted_i][0].lower())
+    elif offset < 0:
+        return(predicted_i > -offset - 1 and
+               set(predicted_links[predicted_i + offset:]) == {-1} and
+               gold_entities[gold_i][0].lower() == predicted_entities[predicted_i + offset][0].lower())
+    elif offset > 0:
+        return(predicted_i < len(predicted_entities) - offset and
+               set(predicted_links[predicted_i + offset:]) == {-1} and
+               gold_entities[gold_i][0].lower() == predicted_entities[predicted_i + offset][0].lower())
+    else:
+        print("compare_elements_with_offset: cannot happen")
+
+
 def compare(gold_entities, predicted_entities):
     gold_links = len(gold_entities) * [-1]
     predicted_links = len(predicted_entities) * [-1]
     for gold_i in range(0, len(gold_entities)):
         predicted_i = int(gold_i * len(predicted_entities) / len(gold_entities))
-        if gold_entities[gold_i][0].lower() == predicted_entities[predicted_i][0].lower():
-            gold_links[gold_i] = predicted_i
-            predicted_links[predicted_i] = gold_i
-        elif (predicted_i > 0 and
-              predicted_links[predicted_i - 1] < 0 and
-              gold_entities[gold_i][0].lower() == predicted_entities[predicted_i - 1][0].lower()):
-            gold_links[gold_i] = predicted_i - 1
-            predicted_links[predicted_i - 1] = gold_i
-        elif (predicted_i < len(predicted_entities) - 1 and
-              predicted_links[predicted_i + 1] < 0 and
-              gold_entities[gold_i][0].lower() == predicted_entities[predicted_i + 1][0].lower()):
-            gold_links[gold_i] = predicted_i + 1
-            predicted_links[predicted_i + 1] = gold_i
+        for offset in [0, -1, 1, -2, 2, -3, 3]:
+            if compare_elements_with_offset(gold_entities, predicted_entities, predicted_links, gold_i, predicted_i, offset):
+                gold_links[gold_i] = predicted_i + offset
+                predicted_links[predicted_i + offset] = gold_i
+                break
+
     correct = 0
     wrong_md = 0
     wrong_ed = 0
@@ -81,10 +90,11 @@ def evaluate(predictions):
         wrong_md_all += wrong_md
         wrong_ed_all += wrong_ed
         missed_all += missed
-    print(f"MD: P: {100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+wrong_md_all):0.1f}%; ",end="")
-    print(f"R: {100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+missed_all):0.1f}%; ", end="")
-    print(f"ED: P: {100*(correct_all)/(correct_all+wrong_ed_all):0.1f}%; ",end="")
-    print(f"R: {100*(correct_all)/(correct_all+missed_all):0.1f}%")
+    print("Results: PMD RMD PED RED: ", end="")
+    print(f"{100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+wrong_md_all):0.1f}% | ",end="")
+    print(f"{100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+missed_all):0.1f}% | ", end="")
+    print(f"{100*(correct_all)/(correct_all+wrong_ed_all):0.1f}% | ",end="")
+    print(f"{100*(correct_all)/(correct_all+missed_all):0.1f}% |")
 
 
 server = False
