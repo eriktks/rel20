@@ -1,2 +1,2 @@
-# rel20
-local repository for the REL 2.0 project
+# REL 2.0
+Exploratory work related to the [REL](https://github.com/informagi/REL/) 2.0 project.
