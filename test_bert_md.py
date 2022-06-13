@@ -7,19 +7,11 @@ from transformers import AutoTokenizer, AutoModelForTokenClassification
 from transformers import pipeline
 
 from REL.mention_detection import MentionDetection
-
-
-def load_bert_ner(model, tokenizer):
-    try:
-        return pipeline("ner", model=model, tokenizer=tokenizer)
-    except Exception:
-        print("error loading Bert NER model!", file=sys.stderr)
+from REL.ner.bert_wrapper import load_bert_ner
 
 
 def test_md():
-    tokenizer = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
-    model = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
-    ner_model = load_bert_ner(model, tokenizer)
+    ner_model = load_bert_ner("dslim/bert-base-NER")
 
     md = MentionDetection(Path(__file__).parent, "wiki_test")
 

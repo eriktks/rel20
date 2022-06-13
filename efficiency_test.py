@@ -8,7 +8,7 @@ np.random.seed(seed=42)
 
 base_url = "/Users/vanhulsm/Desktop/projects/data/"
 base_url = "/home/erikt/projects/rel20/REL/data/"
-wiki_version = "wiki_2019"
+wiki_version = "wiki_2014"
 datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB"]
 
 # random_docs = np.random.choice(list(datasets.keys()), 50)
@@ -136,23 +136,25 @@ for i, doc in enumerate(datasets):
 if not server:
     from time import time
 
-    import flair
-    import torch
-    from flair.models import SequenceTagger
+    #import flair
+    #import torch
+    #from flair.models import SequenceTagger
 
     from REL.entity_disambiguation import EntityDisambiguation
     from REL.mention_detection import MentionDetection
+    from REL.ner.bert_wrapper import load_bert_ner
 
-    base_url = "C:/Users/mickv/desktop/data_back/"
+    #base_url = "C:/Users/mickv/desktop/data_back/"
     base_url = "/home/erikt/projects/rel20/REL/data/"
 
     # flair.device = torch.device("cuda:0")
-    flair.device = torch.device("cpu")
+    #flair.device = torch.device("cpu")
 
     mention_detection = MentionDetection(base_url, wiki_version)
 
     # Alternatively use Flair NER tagger.
-    tagger_ner = SequenceTagger.load("ner-fast")
+    # tagger_ner = SequenceTagger.load("ner-fast")
+    tagger_ner = load_bert_ner("dslim/bert-base-NER")
 
     start = time()
     mentions_dataset, n_mentions = mention_detection.find_mentions(docs, tagger_ner)

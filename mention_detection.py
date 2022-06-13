@@ -1,7 +1,7 @@
-from flair.data import Sentence
-from flair.models import SequenceTagger
-from transformers import AutoTokenizer, AutoModelForTokenClassification
-from transformers import pipeline
+#from flair.data import Sentence
+#from flair.models import SequenceTagger
+#from transformers import AutoTokenizer, AutoModelForTokenClassification
+#from transformers import pipeline
 from segtok.segmenter import split_single
 
 from REL.mention_detection_base import MentionDetectionBase
@@ -99,8 +99,11 @@ class MentionDetection(MentionDetectionBase):
                 ]
                 res[doc][i] = [sent, spans_sent]
                 if len(spans) == 0:
+                    #processed_sentences.append(
+                    #    Sentence(sent, use_tokenizer=True) if is_flair else sent
+                    #)
                     processed_sentences.append(
-                        Sentence(sent, use_tokenizer=True) if is_flair else sent
+                        sent
                     )
                 i += 1
             splits.append(splits[-1] + i)
@@ -117,14 +120,14 @@ class MentionDetection(MentionDetectionBase):
                 "No NER tagger is set, but you are attempting to perform Mention Detection.."
             )
         # Verify if Flair, else ngram or custom.
-        is_flair = isinstance(tagger, SequenceTagger)
+        is_flair = False # isinstance(tagger, SequenceTagger)
         dataset_sentences_raw, processed_sentences, splits = self.split_text(
             dataset, is_flair
         )
         results = {}
         total_ment = 0
-        if is_flair:
-            tagger.predict(processed_sentences)
+        #if is_flair:
+        #    tagger.predict(processed_sentences)
         for i, doc in enumerate(dataset_sentences_raw):
             contents = dataset_sentences_raw[doc]
             raw_text = dataset[doc][0]
