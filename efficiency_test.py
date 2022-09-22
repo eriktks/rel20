@@ -12,8 +12,9 @@ datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB
 
 # random_docs = np.random.choice(list(datasets.keys()), 50)
 
-server = False
+server = True
 docs = {}
+all_results = {}
 for i, doc in enumerate(datasets):
     sentences = []
     for x in datasets[doc]:
@@ -41,8 +42,16 @@ for i, doc in enumerate(datasets):
             print(myjson)
 
             print("Output API:")
-            print(requests.post("http://0.0.0.0:1235", json=myjson).json())
+            results = requests.post("http://0.0.0.0:1235", json=myjson)
+            print(results.json())
             print("----------------------------")
+            results_list = []
+            for result in results.json():
+                results_list.append({ "mention": result[2], "prediction": result[3] })
+            all_results[doc] = results_list
+if len(all_results) > 0:
+    print(all_results)
+    evaluate_predictions.evaluate(all_results)
 
 
 # --------------------- Now total --------------------------------
@@ -82,4 +91,5 @@ if not server:
     predictions, timing = model.predict(mentions_dataset)
     print("ED took: {}".format(time() - start))
 
+    print(predictions)
     evaluate_predictions.evaluate(predictions)

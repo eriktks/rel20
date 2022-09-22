@@ -1,6 +1,5 @@
 import re
 
-
 def get_gold_data(doc):
     GOLD_DATA_FILE = "./data/generic/test_datasets/AIDA/AIDA-YAGO2-dataset.tsv"
     entities = []
@@ -42,17 +41,17 @@ def compare_md(gold_entities, predicted_entities):
                 gold_links[gold_i] = predicted_i + offset
                 predicted_links[predicted_i + offset] = gold_i
                 found = True
-                print("CORRECT", gold_entities[gold_i])
+                #print("CORRECT", gold_entities[gold_i])
                 break
-        if not found:
-            print("MISSED", gold_entities[gold_i])
+        #if not found:
+        #    print("MISSED", gold_entities[gold_i])
     return gold_links, predicted_links
 
 
-def compare_ed(gold_entities, predicted_entities, gold_links, predicted_links):
+def compare_el(gold_entities, predicted_entities, gold_links, predicted_links):
     correct = 0
     wrong_md = 0
-    wrong_ed = 0
+    wrong_el = 0
     missed = 0
     for predicted_i in range(0, len(predicted_links)):
         if predicted_links[predicted_i] < 0:
@@ -60,38 +59,59 @@ def compare_ed(gold_entities, predicted_entities, gold_links, predicted_links):
         elif predicted_entities[predicted_i][1] == gold_entities[predicted_links[predicted_i]][1]:
             correct += 1
         else:
-            wrong_ed += 1
+            wrong_el += 1
     for gold_i in range(0, len(gold_links)):
         if gold_links[gold_i] < 0:
             missed += 1
-    return correct, wrong_md, wrong_ed, missed
+    return correct, wrong_md, wrong_el, missed
 
 
 def compare(gold_entities, predicted_entities):
     gold_links, predicted_links = compare_md(gold_entities, predicted_entities)
-    return compare_ed(gold_entities, predicted_entities, gold_links, predicted_links)
+    return compare_el(gold_entities, predicted_entities, gold_links, predicted_links)
 
 
 def evaluate(predictions):
     correct_all = 0
     wrong_md_all = 0
-    wrong_ed_all = 0
+    wrong_el_all = 0
     missed_all = 0
     for doc in predictions:
         gold_entities = get_gold_data(doc)
         predicted_entities = []
         for mention in predictions[doc]:
             predicted_entities.append([mention["mention"], mention["prediction"]])
-        correct, wrong_md, wrong_ed, missed = compare(gold_entities, predicted_entities)
-        print(correct, wrong_md, wrong_ed, missed)
-        print(gold_entities)
-        print(predicted_entities)
+        correct, wrong_md, wrong_el, missed = compare(gold_entities, predicted_entities)
+        #print(gold_entities)
+        #print(predicted_entities)
         correct_all += correct
         wrong_md_all += wrong_md
-        wrong_ed_all += wrong_ed
+        wrong_el_all += wrong_el
         missed_all += missed
-    print("Results: PMD RMD PED RED: ", end="")
-    print(f"{100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+wrong_md_all):0.1f}% | ",end="")
-    print(f"{100*(correct_all+wrong_ed_all)/(correct_all+wrong_ed_all+missed_all):0.1f}% | ", end="")
-    print(f"{100*(correct_all)/(correct_all+wrong_ed_all):0.1f}% | ",end="")
-    print(f"{100*(correct_all)/(correct_all+missed_all):0.1f}% |")
+    try:
+        precision_md = 100*(correct_all+wrong_el_all)/(correct_all+wrong_el_all+wrong_md_all)
+    except:
+        precision_md = 0
+    try:
+        recall_md = 100*(correct_all+wrong_el_all)/(correct_all+wrong_el_all+missed_all)
+    except:
+        recall_md = 0
+    try:
+        f1_md = 2 * precision_md * recall_md / ( precision_md + recall_md )
+    except:
+        f1_md = 0
+    try:
+        precision_el = 100*(correct_all)/(correct_all+wrong_el_all)
+    except:
+        precision_el = 0.0
+    try:
+        recall_el = 100*(correct_all)/(correct_all+missed_all)
+    except:
+        recall_el = 0
+    try:
+        f1_el = 2 * precision_el * recall_el / ( precision_el + recall_el )
+    except:
+        f1_el = 0
+    print("Results: PMD RMD FMD PEL REL FEL: ", end="")
+    print(f"{precision_md:0.1f}% {recall_md:0.1f}% {f1_md:0.1f}% | ",end="")
+    print(f"{precision_el:0.1f}% {recall_el:0.1f}% {f1_el:0.1f}%")
