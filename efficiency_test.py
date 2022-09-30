@@ -1,13 +1,14 @@
 import numpy as np
 import requests
 import evaluate_predictions
+import json
 
 from REL.training_datasets import TrainingEvaluationDatasets
 
 np.random.seed(seed=42)
 
-base_url = "/store/userdata/etjong/REL.org/data/"
-wiki_version = "wiki_2019"
+base_url = "/store/userdata/etjong/REL.20220731/data/"
+wiki_version = "wiki_2014"
 datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB"]
 
 # random_docs = np.random.choice(list(datasets.keys()), 50)
@@ -22,7 +23,7 @@ for i, doc in enumerate(datasets):
             sentences.append(x["sentence"])
     text = ". ".join([x for x in sentences])
 
-    if len(docs) == 50:
+    if len(docs) == 3:  # was 50
         print(f"length docs is {len(docs)}.")
         print("====================")
         break
@@ -42,15 +43,19 @@ for i, doc in enumerate(datasets):
             print(myjson)
 
             print("Output API:")
-            results = requests.post("http://0.0.0.0:1235", json=myjson)
-            print(results.json())
+            results = requests.post("http://0.0.0.0:5555", json=myjson)
             print("----------------------------")
-            results_list = []
-            for result in results.json():
-                results_list.append({ "mention": result[2], "prediction": result[3] })
-            all_results[doc] = results_list
+            try:
+                results_list = []
+                for result in results.json():
+                    results_list.append({ "mention": result[2], "prediction": result[3] })
+                all_results[doc] = results_list
+                print (results.json())
+            except json.decoder.JSONDecodeError:
+                print("The analysis results are not in json format:", str(results))
+                all_results[doc] = []
+
 if len(all_results) > 0:
-    print(all_results)
     evaluate_predictions.evaluate(all_results)
 
 
@@ -66,7 +71,7 @@ if not server:
     from REL.entity_disambiguation import EntityDisambiguation
     from REL.mention_detection import MentionDetection
 
-    #base_url = "C:/Users/mickv/desktop/data_back/"
+    from REL.ner.bert_wrapper import load_bert_ner
 
     flair.device = torch.device("cpu")
 
@@ -74,6 +79,7 @@ if not server:
 
     # Alternatively use Flair NER tagger.
     tagger_ner = SequenceTagger.load("ner-fast")
+    #tagger_ner = load_bert_ner("dslim/bert-base-NER")
 
     start = time()
     mentions_dataset, n_mentions = mention_detection.find_mentions(docs, tagger_ner)
@@ -91,5 +97,4 @@ if not server:
     predictions, timing = model.predict(mentions_dataset)
     print("ED took: {}".format(time() - start))
 
-    print(predictions)
     evaluate_predictions.evaluate(predictions)
