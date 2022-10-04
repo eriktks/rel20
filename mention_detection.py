@@ -1,7 +1,8 @@
-#from flair.data import Sentence
-#from flair.models import SequenceTagger
-#from transformers import AutoTokenizer, AutoModelForTokenClassification
-#from transformers import pipeline
+import re
+from flair.data import Sentence
+from flair.models import SequenceTagger
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
 from segtok.segmenter import split_single
 
 from REL.mention_detection_base import MentionDetectionBase
@@ -99,15 +100,33 @@ class MentionDetection(MentionDetectionBase):
                 ]
                 res[doc][i] = [sent, spans_sent]
                 if len(spans) == 0:
-                    #processed_sentences.append(
-                    #    Sentence(sent, use_tokenizer=True) if is_flair else sent
-                    #)
                     processed_sentences.append(
-                        sent
+                        Sentence(sent, use_tokenizer=True) if is_flair else sent
                     )
                 i += 1
             splits.append(splits[-1] + i)
         return res, processed_sentences, splits
+
+    def combine_entities(self, ner_results):
+        ner_results_out = []
+        i = 0
+        while i < len(ner_results)-1:
+            last_end = ner_results[i]["end"]
+            ner_results_out.append(dict(ner_results[i]))
+            j = 1
+            while i + j < len(ner_results) and (ner_results[i+j]["start"] == last_end or
+                                                (ner_results[i+j]["start"] == last_end + 1 and 
+                                                 re.search("^I", ner_results[i+j]["entity"]) and
+                                                 re.sub("^..", "", ner_results[i+j]["entity"]) == re.sub("^..", "", ner_results[i]["entity"]))):
+                if ner_results[i+j]["start"] == last_end:
+                    ner_results_out[-1]["word"] += re.sub("^##", "", ner_results[i+j]["word"])
+                else:
+                    ner_results_out[-1]["word"] += " " + ner_results[i+j]["word"]
+                ner_results_out[-1]["end"] = ner_results[i+j]["end"]
+                last_end = ner_results[i+j]["end"]
+                j += 1
+            i += j
+        return ner_results_out
 
     def find_mentions(self, dataset, tagger=None):
         """
@@ -120,14 +139,14 @@ class MentionDetection(MentionDetectionBase):
                 "No NER tagger is set, but you are attempting to perform Mention Detection.."
             )
         # Verify if Flair, else ngram or custom.
-        is_flair = False # isinstance(tagger, SequenceTagger)
+        is_flair = isinstance(tagger, SequenceTagger)
         dataset_sentences_raw, processed_sentences, splits = self.split_text(
             dataset, is_flair
         )
         results = {}
         total_ment = 0
-        #if is_flair:
-        #    tagger.predict(processed_sentences)
+        if is_flair:
+            tagger.predict(processed_sentences)
         for i, doc in enumerate(dataset_sentences_raw):
             contents = dataset_sentences_raw[doc]
             raw_text = dataset[doc][0]
@@ -144,14 +163,18 @@ class MentionDetection(MentionDetectionBase):
                 # if is_flair:
                 # 20220607: no always include
                 offset = raw_text.find(sentence, cum_sent_length)
-
                 for entity in (
                     snt.get_spans("ner")
                     if is_flair
-                    else tagger(snt)
+                    else self.combine_entities(tagger(snt))
                 ):
                     text, start_pos, end_pos, conf, tag = (
-                        entity["word"],
+                        #entity.text, # for Flair
+                        #entity.start_position,
+                        #entity.end_position,
+                        #entity.score,
+                        #entity.tag,
+                        entity["word"], # for BERT
                         entity["start"],
                         entity["end"],
                         entity["score"],

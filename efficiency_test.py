@@ -7,8 +7,8 @@ from REL.training_datasets import TrainingEvaluationDatasets
 
 np.random.seed(seed=42)
 
-base_url = "/store/userdata/etjong/REL.20220731/data/"
-wiki_version = "wiki_2014"
+base_url = "/store/userdata/etjong/REL.org/data/"
+wiki_version = "wiki_2019"
 datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB"]
 
 # random_docs = np.random.choice(list(datasets.keys()), 50)
@@ -23,7 +23,7 @@ for i, doc in enumerate(datasets):
             sentences.append(x["sentence"])
     text = ". ".join([x for x in sentences])
 
-    if len(docs) == 3:  # was 50
+    if len(docs) == 50:  # was 50
         print(f"length docs is {len(docs)}.")
         print("====================")
         break
@@ -48,7 +48,8 @@ for i, doc in enumerate(datasets):
             try:
                 results_list = []
                 for result in results.json():
-                    results_list.append({ "mention": result[2], "prediction": result[3] })
+                    # results_list.append({ "mention": result[2], "prediction": result[3] }) # Flair
+                    results_list.append({ "mention": result[3], "prediction": result[2] }) # Bert
                 all_results[doc] = results_list
                 print (results.json())
             except json.decoder.JSONDecodeError:
@@ -73,13 +74,14 @@ if not server:
 
     from REL.ner.bert_wrapper import load_bert_ner
 
+
     flair.device = torch.device("cpu")
 
     mention_detection = MentionDetection(base_url, wiki_version)
 
     # Alternatively use Flair NER tagger.
-    tagger_ner = SequenceTagger.load("ner-fast")
-    #tagger_ner = load_bert_ner("dslim/bert-base-NER")
+    #tagger_ner = SequenceTagger.load("ner-fast")
+    tagger_ner = load_bert_ner("dslim/bert-large-NER")
 
     start = time()
     mentions_dataset, n_mentions = mention_detection.find_mentions(docs, tagger_ner)
