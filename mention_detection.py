@@ -128,7 +128,7 @@ class MentionDetection(MentionDetectionBase):
             i += j
         return ner_results_out
 
-    def find_mentions(self, dataset, tagger=None):
+    def find_mentions(self, dataset, use_bert, tagger=None):
         """
         Responsible for finding mentions given a set of documents in a batch-wise manner. More specifically,
         it returns the mention, its left/right context and a set of candidates.
@@ -168,18 +168,22 @@ class MentionDetection(MentionDetectionBase):
                     if is_flair
                     else self.combine_entities(tagger(snt))
                 ):
-                    text, start_pos, end_pos, conf, tag = (
-                        #entity.text, # for Flair
-                        #entity.start_position,
-                        #entity.end_position,
-                        #entity.score,
-                        #entity.tag,
-                        entity["word"], # for BERT
-                        entity["start"],
-                        entity["end"],
-                        entity["score"],
-                        entity["entity"],
-                    )
+                    if use_bert:
+                        text, start_pos, end_pos, conf, tag = (
+                            entity["word"], # for BERT
+                            entity["start"],
+                            entity["end"],
+                            entity["score"],
+                            entity["entity"],
+                        )
+                    else:
+                        text, start_pos, end_pos, conf, tag = (
+                            entity.text, # for Flair
+                            entity.start_position,
+                            entity.end_position,
+                            entity.score,
+                            entity.tag,
+                        )
                     total_ment += 1
                     m = self.preprocess_mention(text)
                     cands = self.get_candidates(m)

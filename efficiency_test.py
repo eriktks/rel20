@@ -13,7 +13,10 @@ datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB
 
 # random_docs = np.random.choice(list(datasets.keys()), 50)
 
-server = True
+server = False
+use_bert = True
+use_bert_base = True
+max_docs = 50
 docs = {}
 all_results = {}
 for i, doc in enumerate(datasets):
@@ -23,7 +26,7 @@ for i, doc in enumerate(datasets):
             sentences.append(x["sentence"])
     text = ". ".join([x for x in sentences])
 
-    if len(docs) == 50:  # was 50
+    if len(docs) == max_docs:
         print(f"length docs is {len(docs)}.")
         print("====================")
         break
@@ -48,8 +51,7 @@ for i, doc in enumerate(datasets):
             try:
                 results_list = []
                 for result in results.json():
-                    # results_list.append({ "mention": result[2], "prediction": result[3] }) # Flair
-                    results_list.append({ "mention": result[3], "prediction": result[2] }) # Bert
+                    results_list.append({ "mention": result[2], "prediction": result[3] }) # Flair + Bert
                 all_results[doc] = results_list
                 print (results.json())
             except json.decoder.JSONDecodeError:
@@ -80,11 +82,16 @@ if not server:
     mention_detection = MentionDetection(base_url, wiki_version)
 
     # Alternatively use Flair NER tagger.
-    #tagger_ner = SequenceTagger.load("ner-fast")
-    tagger_ner = load_bert_ner("dslim/bert-large-NER")
+    if use_bert:
+        if use_bert_base:
+            tagger_ner = load_bert_ner("dslim/bert-base-NER")
+        else:
+            tagger_ner = load_bert_ner("dslim/bert-large-NER")
+    else:
+        tagger_ner = SequenceTagger.load("ner-fast")
 
     start = time()
-    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, tagger_ner)
+    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, use_bert, tagger_ner)
     print("MD took: {}".format(time() - start))
 
     # 3. Load model.

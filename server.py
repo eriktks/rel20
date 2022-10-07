@@ -8,17 +8,20 @@ from REL.mention_detection import MentionDetection
 from REL.utils import process_results
 
 API_DOC = "API_DOC"
+use_bert = True
+use_bert_base = False
 
 """
 Class/function combination that is used to setup an API that can be used for e.g. GERBIL evaluation.
 """
 
 
-def make_handler(base_url, wiki_version, model, tagger_ner):
+def make_handler(base_url, wiki_version, model, tagger_ner, use_bert):
     class GetHandler(BaseHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             self.model = model
             self.tagger_ner = tagger_ner
+            self.use_bert = use_bert
 
             self.base_url = base_url
             self.wiki_version = wiki_version
@@ -112,6 +115,17 @@ def make_handler(base_url, wiki_version, model, tagger_ner):
 
             return text, spans
 
+        def convert_bert_result(self, result):
+            new_result = {}
+            for doc_key in result:
+                new_result[doc_key] = []
+                for mention_data in result[doc_key]:
+                    new_result[doc_key].append(list(mention_data))
+                    new_result[doc_key][-1][2], new_result[doc_key][-1][3] =\
+                        new_result[doc_key][-1][3], new_result[doc_key][-1][2]
+                    new_result[doc_key][-1] = tuple(new_result[doc_key][-1])
+            return new_result
+
         def generate_response(self, text, spans):
             """
             Generates response for API. Can be either ED only or EL, meaning end-to-end.
@@ -132,7 +146,7 @@ def make_handler(base_url, wiki_version, model, tagger_ner):
                 # EL
                 processed = {API_DOC: [text, spans]}
                 mentions_dataset, total_ment = self.mention_detection.find_mentions(
-                    processed, self.tagger_ner
+                    processed, self.use_bert, self.tagger_ner
                 )
 
             # Disambiguation
@@ -145,6 +159,8 @@ def make_handler(base_url, wiki_version, model, tagger_ner):
                 processed,
                 include_offset=False if ((len(spans) > 0) or self.custom_ner) else True,
             )
+            if self.use_bert:
+                result = self.convert_bert_result(result)
 
             # Singular document.
             if len(result) > 0:
@@ -172,15 +188,20 @@ if __name__ == "__main__":
     p.add_argument("--port", "-p", default=5555, type=int)
     args = p.parse_args()
 
-    #ner_model = load_flair_ner(args.ner_model)
-    ner_model = load_bert_ner("dslim/bert-base-NER")
+    if use_bert:
+        if use_bert_base:
+            ner_model = load_bert_ner("dslim/bert-base-NER")
+        else:
+            ner_model = load_bert_ner("dslim/bert-large-NER")
+    else:
+        ner_model = load_flair_ner(args.ner_model)
     ed_model = EntityDisambiguation(
         args.base_url, args.wiki_version, {"mode": "eval", "model_path": args.ed_model}
     )
     server_address = (args.bind, args.port)
     server = HTTPServer(
         server_address,
-        make_handler(args.base_url, args.wiki_version, ed_model, ner_model),
+        make_handler(args.base_url, args.wiki_version, ed_model, ner_model, use_bert),
     )
 
     try:
