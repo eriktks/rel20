@@ -1,22 +1,62 @@
-import numpy as np
-import requests
+import argparse
 import evaluate_predictions
 import json
+import numpy as np
+import requests
+import re
+import sys
 
 from REL.training_datasets import TrainingEvaluationDatasets
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--max_docs", help = "number of documents")
+parser.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
+parser.add_argument("--split_docs", help = "split documents")
+parser.add_argument("--use_bert", help = "use Bert rather than Flair", action="store_true")
+parser.add_argument("--use_bert_base", help = "use Bert base rather than Flair", action="store_true")
+parser.add_argument("--use_server", help = "use server", action="store_true")
+parser.add_argument("--wiki_version", help = "Wiki version")
+args = parser.parse_args()
 
 np.random.seed(seed=42)
 
 base_url = "/store/userdata/etjong/REL.org/data/"
-wiki_version = "wiki_2019"
+if args.max_docs:
+    max_docs = int(args.max_docs)
+else:
+    max_docs = 50
+if args.process_sentences:
+    process_sentences = True
+else:
+    process_sentences = False
+if args.split_docs:
+    split_docs = True
+else:
+    split_docs = False
+if args.wiki_version:
+    wiki_version = args.wiki_version
+else:
+    wiki_version = "wiki_2019"
+
 datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB"]
 
-# random_docs = np.random.choice(list(datasets.keys()), 50)
+if args.use_server:
+    use_server = True
+else:
+    use_server = False
+if args.use_bert:
+    use_bert = True
+else:
+    use_bert = False
+    use_sentences = True
+if args.use_bert_base:
+    use_bert = True
+    use_bert_base = True
+else:
+    use_bert_base = False
 
-server = False
-use_bert = True
-use_bert_base = True
-max_docs = 50
+print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert={use_bert} use_bert_base={use_bert_base} use_server={use_server} process_sentences={process_sentences}")
+
 docs = {}
 all_results = {}
 for i, doc in enumerate(datasets):
@@ -26,7 +66,7 @@ for i, doc in enumerate(datasets):
             sentences.append(x["sentence"])
     text = ". ".join([x for x in sentences])
 
-    if len(docs) == max_docs:
+    if len(docs) >= max_docs:
         print(f"length docs is {len(docs)}.")
         print("====================")
         break
@@ -34,7 +74,7 @@ for i, doc in enumerate(datasets):
     if len(text.split()) > 200:
         docs[doc] = [text, []]
         # Demo script that can be used to query the API.
-        if server:
+        if use_server:
             myjson = {
                 "text": text,
                 "spans": [
@@ -64,7 +104,7 @@ if len(all_results) > 0:
 
 # --------------------- Now total --------------------------------
 # ------------- RUN SEPARATELY TO BALANCE LOAD--------------------
-if not server:
+if not use_server:
     from time import time
 
     import flair
@@ -91,8 +131,8 @@ if not server:
         tagger_ner = SequenceTagger.load("ner-fast")
 
     start = time()
-    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, use_bert, tagger_ner)
-    print("MD took: {}".format(time() - start))
+    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, use_bert, process_sentences, split_docs, tagger_ner)
+    print("MD took: {} seconds".format(round(time() - start, 2)))
 
     # 3. Load model.
     config = {
@@ -104,6 +144,8 @@ if not server:
     # 4. Entity disambiguation.
     start = time()
     predictions, timing = model.predict(mentions_dataset)
-    print("ED took: {}".format(time() - start))
+    print("ED took: {} seconds".format(round(time() - start, 2)))
 
+    #for doc in docs:
+    #    print(len(re.sub("[^ ]+","",docs[doc][0])), docs[doc][0])
     evaluate_predictions.evaluate(predictions)
