@@ -21,7 +21,7 @@ class MentionDetection(MentionDetectionBase):
         super().__init__(base_url, wiki_version)
 
 
-    def format_spans(self, dataset):
+    def format_spans(self, dataset, process_sentences):
         """
         Responsible for formatting given spans into dataset for the ED step. More specifically,
         it returns the mention, its left/right context and a set of candidates.
@@ -29,7 +29,7 @@ class MentionDetection(MentionDetectionBase):
         :return: Dictionary with mentions per document.
         """
 
-        dataset, _, _ = self.split_text(dataset)
+        dataset, _, _ = self.split_text(dataset, process_sentences)
         results = {}
         total_ment = 0
 
@@ -42,8 +42,6 @@ class MentionDetection(MentionDetectionBase):
                 for ngram, start_pos, end_pos in spans:
                     total_ment += 1
 
-                    # end_pos = start_pos + length
-                    # ngram = text[start_pos:end_pos]
                     mention = self.preprocess_mention(ngram)
                     left_ctxt, right_ctxt = self.get_ctxt(
                         start_pos, end_pos, idx_sent, sentence, sentences_doc
@@ -67,7 +65,7 @@ class MentionDetection(MentionDetectionBase):
         return results, total_ment
 
 
-    def split_text(self, dataset, is_flair=False):
+    def split_text(self, dataset, process_sentences, split_docs_value, is_flair=False):
         """
         Splits text into sentences with optional spans (format is a requirement for GERBIL usage).
         This behavior is required for the default NER-tagger, which during experiments was experienced
@@ -81,7 +79,12 @@ class MentionDetection(MentionDetectionBase):
         processed_sentences = []
         for doc in dataset:
             text, spans = dataset[doc]
-            sentences = split_single(text)
+            if process_sentences:
+                sentences = split_single(text)
+            elif split_docs_value > 0:
+                sentences = self.split_text_in_parts(text, split_docs_value)
+            else:
+                sentences = [ text ]
             res[doc] = {}
 
             i = 0
@@ -132,7 +135,19 @@ class MentionDetection(MentionDetectionBase):
         return ner_results_out
 
 
-    def find_mentions(self, dataset, use_bert, use_sentences, tagger=None):
+    def split_text_in_parts(self, text, split_docs_value):
+        token_lists = []
+        for token in text.split():
+            if len(token_lists) == 0 or len(token_lists[-1]) >= split_docs_value:
+                token_lists.append([])
+            token_lists[-1].append(token)
+        texts = []
+        for token_list in token_lists:
+            texts.append(" ".join(token_list))
+        return texts
+
+
+    def find_mentions(self, dataset, use_bert, process_sentences, split_docs_value, tagger=None):
         """
         Responsible for finding mentions given a set of documents in a batch-wise manner. More specifically,
         it returns the mention, its left/right context and a set of candidates.
@@ -145,30 +160,17 @@ class MentionDetection(MentionDetectionBase):
         # Verify if Flair, else ngram or custom.
         is_flair = isinstance(tagger, SequenceTagger)
         dataset_sentences_raw, processed_sentences, splits = self.split_text(
-            dataset, is_flair
+            dataset, process_sentences, split_docs_value, is_flair
         )
         results = {}
         total_ment = 0
         if is_flair:
             tagger.predict(processed_sentences)
         for i, doc in enumerate(dataset_sentences_raw):
-            if use_sentences:
-                #print("DOC", type(doc), doc)
-                contents = dataset_sentences_raw[doc]
-                #print("CONTENTS", type(contents), contents)
-                raw_text = dataset[doc][0]
-                #print("RAW_TEXT", type(raw_text), raw_text)
-                sentences_doc = [v[0] for v in contents.values()]
-                sentences = processed_sentences[splits[i] : splits[i + 1]]
-                #print("SENTENCES", sentences)
-            else:
-                raw_text = dataset[doc][0]
-                contents = { 0: [raw_text, [] ] }
-                #print("CONTENTS", type(contents), contents)
-                sentences_doc = [v[0] for v in contents.values()]
-                #print("SENTENCES_DOC", sentences_doc)
-                sentences = [ raw_text ]
-                #print("SENTENCES", sentences)
+            raw_text = dataset[doc][0]
+            contents = dataset_sentences_raw[doc]
+            sentences_doc = [v[0] for v in contents.values()]
+            sentences = processed_sentences[splits[i] : splits[i + 1]]
             result_doc = []
             cum_sent_length = 0
             offset = 0
@@ -180,8 +182,6 @@ class MentionDetection(MentionDetectionBase):
                 # if is_flair:
                 # 20220607: no always include
                 offset = raw_text.find(sentence, cum_sent_length)
-                # print(len(re.sub('[^ ]', "", snt)), snt)
-                # flair: 11 32 24 41 16 17 27 37 11 31 15 20 16 27 15 
                 entity_counter = 0
                 for entity in (
                     snt.get_spans("ner")

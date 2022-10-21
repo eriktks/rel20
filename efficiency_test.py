@@ -11,8 +11,8 @@ from REL.training_datasets import TrainingEvaluationDatasets
 parser = argparse.ArgumentParser()
 parser.add_argument("--max_docs", help = "number of documents")
 parser.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
-parser.add_argument("--split_docs", help = "split documents")
-parser.add_argument("--use_bert", help = "use Bert rather than Flair", action="store_true")
+parser.add_argument("--split_docs_value", help = "threshold number of tokens to split document")
+parser.add_argument("--use_bert_large", help = "use Bert large rather than Flair", action="store_true")
 parser.add_argument("--use_bert_base", help = "use Bert base rather than Flair", action="store_true")
 parser.add_argument("--use_server", help = "use server", action="store_true")
 parser.add_argument("--wiki_version", help = "Wiki version")
@@ -29,10 +29,12 @@ if args.process_sentences:
     process_sentences = True
 else:
     process_sentences = False
-if args.split_docs:
-    split_docs = True
+
+if args.split_docs_value:
+    split_docs_value = int(args.split_docs_value)
 else:
-    split_docs = False
+    split_docs_value = 0
+
 if args.wiki_version:
     wiki_version = args.wiki_version
 else:
@@ -44,18 +46,20 @@ if args.use_server:
     use_server = True
 else:
     use_server = False
-if args.use_bert:
-    use_bert = True
+
+if args.use_bert_large:
+    use_bert_large = True
+    use_bert_base = False
 else:
-    use_bert = False
-    use_sentences = True
+    use_bert_large = False
+
 if args.use_bert_base:
-    use_bert = True
     use_bert_base = True
+    use_bert_large = False
 else:
     use_bert_base = False
 
-print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert={use_bert} use_bert_base={use_bert_base} use_server={use_server} process_sentences={process_sentences}")
+print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert_large={use_bert_large} use_bert_base={use_bert_base} use_server={use_server} process_sentences={process_sentences} split_docs_value={split_docs_value}")
 
 docs = {}
 all_results = {}
@@ -122,16 +126,15 @@ if not use_server:
     mention_detection = MentionDetection(base_url, wiki_version)
 
     # Alternatively use Flair NER tagger.
-    if use_bert:
-        if use_bert_base:
-            tagger_ner = load_bert_ner("dslim/bert-base-NER")
-        else:
-            tagger_ner = load_bert_ner("dslim/bert-large-NER")
+    if use_bert_large:
+        tagger_ner = load_bert_ner("dslim/bert-large-NER")
+    elif use_bert_base:
+        tagger_ner = load_bert_ner("dslim/bert-base-NER")
     else:
         tagger_ner = SequenceTagger.load("ner-fast")
 
     start = time()
-    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, use_bert, process_sentences, split_docs, tagger_ner)
+    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, (use_bert_large or use_bert_base), process_sentences, split_docs_value, tagger_ner)
     print("MD took: {} seconds".format(round(time() - start, 2)))
 
     # 3. Load model.
@@ -146,6 +149,4 @@ if not use_server:
     predictions, timing = model.predict(mentions_dataset)
     print("ED took: {} seconds".format(round(time() - start, 2)))
 
-    #for doc in docs:
-    #    print(len(re.sub("[^ ]+","",docs[doc][0])), docs[doc][0])
     evaluate_predictions.evaluate(predictions)
