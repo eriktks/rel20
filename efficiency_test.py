@@ -12,8 +12,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--max_docs", help = "number of documents")
 parser.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
 parser.add_argument("--split_docs_value", help = "threshold number of tokens to split document")
-parser.add_argument("--use_bert_large", help = "use Bert large rather than Flair", action="store_true")
-parser.add_argument("--use_bert_base", help = "use Bert base rather than Flair", action="store_true")
+parser.add_argument("--use_bert_base_cased", help = "use Bert base cased rather than Flair", action="store_true")
+parser.add_argument("--use_bert_large_cased", help = "use Bert large cased rather than Flair", action="store_true")
+parser.add_argument("--use_bert_base_uncased", help = "use Bert base uncased rather than Flair", action="store_true")
+parser.add_argument("--use_bert_large_uncased", help = "use Bert large uncased rather than Flair", action="store_true")
 parser.add_argument("--use_server", help = "use server", action="store_true")
 parser.add_argument("--wiki_version", help = "Wiki version")
 args = parser.parse_args()
@@ -47,19 +49,22 @@ if args.use_server:
 else:
     use_server = False
 
-if args.use_bert_large:
-    use_bert_large = True
-    use_bert_base = False
-else:
-    use_bert_large = False
+use_bert_base_cased = False
+use_bert_large_cased = False
+use_bert_base_uncased = False
+use_bert_large_uncased = False
 
-if args.use_bert_base:
-    use_bert_base = True
-    use_bert_large = False
-else:
-    use_bert_base = False
+if args.use_bert_base_cased:
+    use_bert_base_cased = True
+elif args.use_bert_large_cased:
+    use_bert_large_cased = True
+elif args.use_bert_base_uncased:
+    use_bert_base_uncased = True
+elif args.use_bert_large_uncased:
+    use_bert_large_uncased = True
 
-print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert_large={use_bert_large} use_bert_base={use_bert_base} use_server={use_server} process_sentences={process_sentences} split_docs_value={split_docs_value}")
+
+print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert_base_cased={use_bert_base_cased} use_bert_large_cased={use_bert_large_cased} use_bert_base_uncased={use_bert_base_uncased} use_bert_large_uncased={use_bert_large_uncased} use_server={use_server} process_sentences={process_sentences} split_docs_value={split_docs_value}")
 
 docs = {}
 all_results = {}
@@ -97,7 +102,6 @@ for i, doc in enumerate(datasets):
                 for result in results.json():
                     results_list.append({ "mention": result[2], "prediction": result[3] }) # Flair + Bert
                 all_results[doc] = results_list
-                print (results.json())
             except json.decoder.JSONDecodeError:
                 print("The analysis results are not in json format:", str(results))
                 all_results[doc] = []
@@ -126,15 +130,23 @@ if not use_server:
     mention_detection = MentionDetection(base_url, wiki_version)
 
     # Alternatively use Flair NER tagger.
-    if use_bert_large:
-        tagger_ner = load_bert_ner("dslim/bert-large-NER")
-    elif use_bert_base:
+    if use_bert_base_uncased:
+        tagger_ner = load_bert_ner("dslim/bert-base-NER-uncased")
+    elif use_bert_large_uncased:
+        raise Exception("The tagger bert-large-NER-uncased is not available")   
+    elif use_bert_base_cased:
         tagger_ner = load_bert_ner("dslim/bert-base-NER")
+    elif use_bert_large_cased:
+        tagger_ner = load_bert_ner("dslim/bert-large-NER")
     else:
         tagger_ner = SequenceTagger.load("ner-fast")
 
     start = time()
-    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, (use_bert_large or use_bert_base), process_sentences, split_docs_value, tagger_ner)
+    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, 
+       (use_bert_base_cased or use_bert_large_cased or use_bert_base_uncased or use_bert_large_uncased), 
+       process_sentences, 
+       split_docs_value, 
+       tagger_ner)
     print("MD took: {} seconds".format(round(time() - start, 2)))
 
     # 3. Load model.

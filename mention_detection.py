@@ -136,11 +136,22 @@ class MentionDetection(MentionDetectionBase):
 
 
     def split_text_in_parts(self, text, split_docs_value):
+        """
+        Splits text in parts of as most split_docs_value tokens. Texts are split at sentence 
+        boundaries. If a sentence is longer than the limit it will be split in parts of
+        maximally split_docs_value tokens.
+        """
+        sentences = split_single(text)
         token_lists = []
-        for token in text.split():
-            if len(token_lists) == 0 or len(token_lists[-1]) >= split_docs_value:
+        for sentence in sentences:
+            sentence_tokens = sentence.split()
+            if len(token_lists) == 0 or (len(token_lists[-1]) + len(sentence_tokens)) > split_docs_value:
                 token_lists.append([])
-            token_lists[-1].append(token)
+            token_lists[-1].extend(sentence_tokens)
+            while len(token_lists[-1]) > split_docs_value:
+                token_lists.append(token_lists[-1])
+                token_lists[-2] = token_lists[-2][:split_docs_value]
+                token_lists[-1] = token_lists[-1][split_docs_value:]
         texts = []
         for token_list in token_lists:
             texts.append(" ".join(token_list))
