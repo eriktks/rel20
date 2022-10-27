@@ -201,7 +201,8 @@ class MentionDetection(MentionDetectionBase):
                 ):
                     if use_bert:
                         text, start_pos, end_pos, conf, tag = (
-                            entity["word"], # for BERT
+                            # entity["word"], # for BERT
+                            sentence[entity["start"]:entity["end"]], # for BERT
                             entity["start"],
                             entity["end"],
                             entity["score"],
