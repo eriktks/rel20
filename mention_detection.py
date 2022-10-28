@@ -29,7 +29,7 @@ class MentionDetection(MentionDetectionBase):
         :return: Dictionary with mentions per document.
         """
 
-        dataset, _, _ = self.split_text(dataset, process_sentences)
+        dataset, _, _ = self.split_text(dataset, process_sentences) # 20221017 arg list is incomplete
         results = {}
         total_ment = 0
 
@@ -65,7 +65,7 @@ class MentionDetection(MentionDetectionBase):
         return results, total_ment
 
 
-    def split_text(self, dataset, process_sentences, split_docs_value, is_flair=False):
+    def split_text(self, dataset, process_sentences, split_docs_value, tagger, is_flair=False):
         """
         Splits text into sentences with optional spans (format is a requirement for GERBIL usage).
         This behavior is required for the default NER-tagger, which during experiments was experienced
@@ -82,7 +82,7 @@ class MentionDetection(MentionDetectionBase):
             if process_sentences:
                 sentences = split_single(text)
             elif split_docs_value > 0:
-                sentences = self.split_text_in_parts(text, split_docs_value)
+                sentences = self.split_text_in_parts(text, split_docs_value, tagger)
             else:
                 sentences = [ text ]
             res[doc] = {}
@@ -135,7 +135,14 @@ class MentionDetection(MentionDetectionBase):
         return ner_results_out
 
 
-    def split_text_in_parts(self, text, split_docs_value):
+    def split_sentence_in_tokens(self, sentence, tagger):
+        tokens = []
+        for token_id in tagger.tokenizer([sentence])["input_ids"][0]:
+            tokens.append(tagger.tokenizer.decode(token_id))
+        return tokens
+
+
+    def split_text_in_parts(self, text, split_docs_value, tagger):
         """
         Splits text in parts of as most split_docs_value tokens. Texts are split at sentence 
         boundaries. If a sentence is longer than the limit it will be split in parts of
@@ -171,7 +178,7 @@ class MentionDetection(MentionDetectionBase):
         # Verify if Flair, else ngram or custom.
         is_flair = isinstance(tagger, SequenceTagger)
         dataset_sentences_raw, processed_sentences, splits = self.split_text(
-            dataset, process_sentences, split_docs_value, is_flair
+            dataset, process_sentences, split_docs_value, tagger, is_flair
         )
         results = {}
         total_ment = 0
@@ -201,7 +208,6 @@ class MentionDetection(MentionDetectionBase):
                 ):
                     if use_bert:
                         text, start_pos, end_pos, conf, tag = (
-                            # entity["word"], # for BERT
                             sentence[entity["start"]:entity["end"]], # for BERT
                             entity["start"],
                             entity["end"],

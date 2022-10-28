@@ -133,7 +133,7 @@ if not use_server:
     if use_bert_base_uncased:
         tagger_ner = load_bert_ner("dslim/bert-base-NER-uncased")
     elif use_bert_large_uncased:
-        raise Exception("The tagger bert-large-NER-uncased is not available")   
+        tagger_ner = load_bert_ner("Jorgeutd/bert-large-uncased-finetuned-ner")
     elif use_bert_base_cased:
         tagger_ner = load_bert_ner("dslim/bert-base-NER")
     elif use_bert_large_cased:
