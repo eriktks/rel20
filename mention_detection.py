@@ -136,10 +136,25 @@ class MentionDetection(MentionDetectionBase):
 
 
     def split_sentence_in_tokens(self, sentence, tagger):
+        tokenizer_results = tagger.tokenizer([sentence], return_offsets_mapping=True)
+        input_ids = tokenizer_results["input_ids"][0]
+        token_spans = tokenizer_results["offset_mapping"][0]
         tokens = []
-        for token_id in tagger.tokenizer([sentence])["input_ids"][0]:
+        for token_id in input_ids:
             tokens.append(tagger.tokenizer.decode(token_id))
-        return tokens
+        return tokens, token_spans
+
+
+    def combine_tokens_to_text(self, token_list):
+        text = ""
+        for token in token_list:
+            if re.search("^##", token):
+                text += re.sub("^##", "", token)
+            elif text == "":
+                text = token
+            else:
+                text += " " + token
+        return text
 
 
     def split_text_in_parts(self, text, split_docs_value, tagger):
@@ -150,18 +165,27 @@ class MentionDetection(MentionDetectionBase):
         """
         sentences = split_single(text)
         token_lists = []
+        texts = []
         for sentence in sentences:
-            sentence_tokens = sentence.split()
+            #sentence_tokens = sentence.split()
+            sentence_tokens, token_spans = self.split_sentence_in_tokens(sentence, tagger)
             if len(token_lists) == 0 or (len(token_lists[-1]) + len(sentence_tokens)) > split_docs_value:
                 token_lists.append([])
+                texts.append("")
             token_lists[-1].extend(sentence_tokens)
+            if texts[-1] == "":
+                texts[-1] = sentence
+            else:
+                texts[-1] += " " + sentence
+            first_split_point = 0
             while len(token_lists[-1]) > split_docs_value:
-                token_lists.append(token_lists[-1])
+                token_lists.append(list(token_lists[-1]))
                 token_lists[-2] = token_lists[-2][:split_docs_value]
                 token_lists[-1] = token_lists[-1][split_docs_value:]
-        texts = []
-        for token_list in token_lists:
-            texts.append(" ".join(token_list))
+                second_split_point = token_spans[-len(token_lists[-1])][0]
+                texts[-1] = sentence[first_split_point:second_split_point]
+                texts.append(sentence[second_split_point:])
+                first_split_point = second_split_point
         return texts
 
 
