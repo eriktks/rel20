@@ -136,7 +136,7 @@ class MentionDetection(MentionDetectionBase):
 
 
     def split_sentence_in_tokens(self, sentence, tagger):
-        tokenizer_results = tagger.tokenizer([sentence], return_offsets_mapping=True)
+        tokenizer_results = tagger.tokenizer([sentence], return_offsets_mapping=True) # warns if sentence is too long (>512) 
         input_ids = tokenizer_results["input_ids"][0]
         token_spans = tokenizer_results["offset_mapping"][0]
         tokens = []
