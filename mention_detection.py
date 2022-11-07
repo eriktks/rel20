@@ -3,7 +3,7 @@ from flair.data import Sentence
 from flair.models import SequenceTagger
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 from transformers import pipeline
-from segtok.segmenter import split_single
+from syntok import segmenter
 
 from REL.mention_detection_base import MentionDetectionBase
 
@@ -65,6 +65,18 @@ class MentionDetection(MentionDetectionBase):
         return results, total_ment
 
 
+    def split_single(self, text):
+        sentences_as_token_lists = segmenter.process(text)
+        sentences = []
+        for paragraph in sentences_as_token_lists:
+            for sentence in paragraph:
+                if len(sentence) > 0:
+                    tokens = [ str(token) for token in sentence ]
+                    sentences.append("".join(tokens))
+                    sentences[-1] = re.sub("^ +", "", sentences[-1])
+        return sentences
+
+
     def split_text(self, dataset, process_sentences, split_docs_value, tagger, is_flair=False):
         """
         Splits text into sentences with optional spans (format is a requirement for GERBIL usage).
@@ -80,7 +92,7 @@ class MentionDetection(MentionDetectionBase):
         for doc in dataset:
             text, spans = dataset[doc]
             if process_sentences:
-                sentences = split_single(text)
+                sentences = self.split_single(text)
             elif split_docs_value > 0:
                 sentences = self.split_text_in_parts(text, split_docs_value, tagger)
             else:
@@ -163,7 +175,7 @@ class MentionDetection(MentionDetectionBase):
         boundaries. If a sentence is longer than the limit it will be split in parts of
         maximally split_docs_value tokens.
         """
-        sentences = split_single(text)
+        sentences = self.split_single(text)
         token_lists = []
         texts = []
         for sentence in sentences:
