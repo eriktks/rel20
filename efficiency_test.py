@@ -9,70 +9,57 @@ import sys
 from REL.training_datasets import TrainingEvaluationDatasets
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_docs", help = "number of documents")
+parser.add_argument("--max_docs", action="store", type=int, help = "number of documents")
 parser.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
-parser.add_argument("--split_docs_value", help = "threshold number of tokens to split document")
+parser.add_argument("--split_docs_value", action="store", type=int, help = "threshold number of tokens to split document")
 parser.add_argument("--use_bert_base_cased", help = "use Bert base cased rather than Flair", action="store_true")
 parser.add_argument("--use_bert_large_cased", help = "use Bert large cased rather than Flair", action="store_true")
 parser.add_argument("--use_bert_base_uncased", help = "use Bert base uncased rather than Flair", action="store_true")
 parser.add_argument("--use_bert_large_uncased", help = "use Bert large uncased rather than Flair", action="store_true")
 parser.add_argument("--use_server", help = "use server", action="store_true")
 parser.add_argument("--wiki_version", help = "Wiki version")
+parser.add_argument("--base_url", help = "Base url")
+
+parser.set_defaults(
+    max_docs = 50,
+    split_docs_value = 0,
+    wiki_version = "wiki_2019",
+    base_url="/store/userdata/etjong/REL.org/data/",
+    )
+
 args = parser.parse_args()
 
 np.random.seed(seed=42)
 
-base_url = "/store/userdata/etjong/REL.org/data/"
-if args.max_docs:
-    max_docs = int(args.max_docs)
-else:
-    max_docs = 50
-if args.process_sentences:
-    process_sentences = True
-else:
-    process_sentences = False
-
-if args.split_docs_value:
-    split_docs_value = int(args.split_docs_value)
-else:
-    split_docs_value = 0
-
-if args.wiki_version:
-    wiki_version = args.wiki_version
-else:
-    wiki_version = "wiki_2019"
+base_url = args.base_url
+max_docs = args.max_docs
+process_sentences = args.process_sentences
+split_docs_value = args.split_docs_value
+use_bert_base_cased = args.use_bert_base_cased
+use_bert_base_uncased = args.use_bert_base_uncased
+use_bert_large_cased = args.use_bert_large_cased
+use_bert_large_uncased = args.use_bert_large_uncased
+use_server = args.use_server
+wiki_version = args.wiki_version
 
 datasets = TrainingEvaluationDatasets(base_url, wiki_version).load()["aida_testB"]
 
-if args.use_server:
-    use_server = True
-else:
-    use_server = False
-
-use_bert_base_cased = False
-use_bert_large_cased = False
-use_bert_base_uncased = False
-use_bert_large_uncased = False
-
-if args.use_bert_base_cased:
-    use_bert_base_cased = True
-elif args.use_bert_large_cased:
-    use_bert_large_cased = True
-elif args.use_bert_base_uncased:
-    use_bert_base_uncased = True
-elif args.use_bert_large_uncased:
-    use_bert_large_uncased = True
-
-
-print(f"max_docs={max_docs} wiki_version={wiki_version} use_bert_base_cased={use_bert_base_cased} use_bert_large_cased={use_bert_large_cased} use_bert_base_uncased={use_bert_base_uncased} use_bert_large_uncased={use_bert_large_uncased} use_server={use_server} process_sentences={process_sentences} split_docs_value={split_docs_value}")
+print(f"{max_docs=} {wiki_version=}")
+print(f"{use_bert_base_cased=} {use_bert_large_cased=}")
+print(f"{use_bert_base_uncased=} {use_bert_large_uncased=}")
+print(f"{use_server=} {process_sentences=} {split_docs_value=}")
 
 docs = {}
 all_results = {}
+
 for i, doc in enumerate(datasets):
+    
     sentences = []
+    
     for x in datasets[doc]:
         if x["sentence"] not in sentences:
             sentences.append(x["sentence"])
+    
     text = ". ".join([x for x in sentences])
 
     if len(docs) >= max_docs:
@@ -124,7 +111,6 @@ if not use_server:
 
     from REL.ner.bert_wrapper import load_bert_ner
 
-
     flair.device = torch.device("cpu")
 
     mention_detection = MentionDetection(base_url, wiki_version)
@@ -147,18 +133,19 @@ if not use_server:
        process_sentences, 
        split_docs_value, 
        tagger_ner)
-    print("MD took: {} seconds".format(round(time() - start, 2)))
+
+    print(f"MD took: {time() - start:.2f} seconds")
 
     # 3. Load model.
     config = {
         "mode": "eval",
-        "model_path": "{}/{}/generated/model".format(base_url, wiki_version),
+        f"model_path": "{base_url}/{wiki_version}/generated/model"
     }
     model = EntityDisambiguation(base_url, wiki_version, config)
 
     # 4. Entity disambiguation.
     start = time()
     predictions, timing = model.predict(mentions_dataset)
-    print("ED took: {} seconds".format(round(time() - start, 2)))
+    print(f"ED took: {time() - start:.2f} seconds")
 
     evaluate_predictions.evaluate(predictions)
