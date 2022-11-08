@@ -7,8 +7,6 @@ import pkg_resources
 from anyascii import anyascii
 from colorama import Fore, Style
 from flair.file_utils import get_from_cache
-from nltk.tokenize import RegexpTokenizer
-from syntok import segmenter
 
 
 def fetch_model(path_or_url, cache_dir=flair.cache_root / "models/taggers"):
@@ -126,37 +124,14 @@ def modify_uppercase_phrase(s):
 
 
 def split_single_in_tokens(text):
-    paragraphs_as_token_lists = segmenter.process(text)
-    text_as_tokens = []
-    for paragraph in paragraphs_as_token_lists:
-        for sentence in paragraph:
-           for token in sentence:
-               if token.value != "":
-                   text_as_tokens.append(token.value)
-    return text_as_tokens
+    return text.split()
 
 
 def split_in_words(inputstr):
-    """
-    This regexp also splits 'AL-NAHAR', which should be a single word
-    into 'AL' and 'NAHAR', resulting in the inability to find a match.
-
-    Same with U.S.
-    """
-    #tokenizer = RegexpTokenizer(r"\w+")
-    #return [anyascii(w) for w in tokenizer.tokenize(inputstr)]  # #inputstr.split()]#
     return split_single_in_tokens(inputstr)
 
 
 def split_in_words_mention(inputstr):
-    """
-    This regexp also splits 'AL-NAHAR', which should be a single word
-    into 'AL' and 'NAHAR', resulting in the inability to find a match.
-
-    Same with U.S.
-    """
-    #tokenizer = RegexpTokenizer(r"\w+")
-    #return [anyascii(w) for w in inputstr.split()]  # #inputstr.split()]#
     return split_single_in_tokens(inputstr)
 
 

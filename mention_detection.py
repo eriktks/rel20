@@ -70,10 +70,8 @@ class MentionDetection(MentionDetectionBase):
         sentences = []
         for paragraph in sentences_as_token_lists:
             for sentence in paragraph:
-                if len(sentence) > 0:
-                    tokens = [ str(token) for token in sentence ]
-                    sentences.append("".join(tokens))
-                    sentences[-1] = re.sub("^ +", "", sentences[-1])
+                tokens = [ str(token) for token in sentence ]
+                sentences.append("".join(tokens).strip())
         return sentences
 
 
@@ -147,13 +145,11 @@ class MentionDetection(MentionDetectionBase):
         return ner_results_out
 
 
-    def split_sentence_in_tokens(self, sentence, tagger):
+    def split_sentence_in_bert_tokens(self, sentence, tagger):
         tokenizer_results = tagger.tokenizer([sentence], return_offsets_mapping=True) # warns if sentence is too long (>512) 
         input_ids = tokenizer_results["input_ids"][0]
         token_spans = tokenizer_results["offset_mapping"][0]
-        tokens = []
-        for token_id in input_ids:
-            tokens.append(tagger.tokenizer.decode(token_id))
+        tokens = [ tagger.tokenizer.decode(token_id) for token_id in input_ids ]
         return tokens, token_spans
 
 
@@ -179,8 +175,7 @@ class MentionDetection(MentionDetectionBase):
         token_lists = []
         texts = []
         for sentence in sentences:
-            #sentence_tokens = sentence.split()
-            sentence_tokens, token_spans = self.split_sentence_in_tokens(sentence, tagger)
+            sentence_tokens, token_spans = self.split_sentence_in_bert_tokens(sentence, tagger)
             if len(token_lists) == 0 or (len(token_lists[-1]) + len(sentence_tokens)) > split_docs_value:
                 token_lists.append([])
                 texts.append("")
