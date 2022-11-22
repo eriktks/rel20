@@ -8,20 +8,20 @@ from REL.mention_detection import MentionDetection
 from REL.utils import process_results
 
 API_DOC = "API_DOC"
-use_bert = True
-use_bert_base = False
 
 """
 Class/function combination that is used to setup an API that can be used for e.g. GERBIL evaluation.
 """
 
 
-def make_handler(base_url, wiki_version, model, tagger_ner, use_bert):
+def make_handler(base_url, wiki_version, model, tagger_ner, use_bert, process_sentences, split_docs_value=0):
     class GetHandler(BaseHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             self.model = model
             self.tagger_ner = tagger_ner
             self.use_bert = use_bert
+            self.process_sentences = process_sentences
+            self.split_docs_value = split_docs_value
 
             self.base_url = base_url
             self.wiki_version = wiki_version
@@ -146,7 +146,7 @@ def make_handler(base_url, wiki_version, model, tagger_ner, use_bert):
                 # EL
                 processed = {API_DOC: [text, spans]}
                 mentions_dataset, total_ment = self.mention_detection.find_mentions(
-                    processed, self.use_bert, self.tagger_ner
+                    processed, self.use_bert, self.process_sentences, self.split_docs_value, self.tagger_ner
                 )
 
             # Disambiguation
@@ -159,8 +159,7 @@ def make_handler(base_url, wiki_version, model, tagger_ner, use_bert):
                 processed,
                 include_offset=False if ((len(spans) > 0) or self.custom_ner) else True,
             )
-            if self.use_bert:
-                result = self.convert_bert_result(result)
+            result = self.convert_bert_result(result)
 
             # Singular document.
             if len(result) > 0:
@@ -186,22 +185,48 @@ if __name__ == "__main__":
     p.add_argument("--ner-model", default="ner-fast")
     p.add_argument("--bind", "-b", metavar="ADDRESS", default="0.0.0.0")
     p.add_argument("--port", "-p", default=5555, type=int)
+    p.add_argument("--use_bert_large_cased", help = "use Bert large cased rather than Flair", action="store_true")
+    p.add_argument("--use_bert_base_cased", help = "use Bert base cased rather than Flair", action="store_true")
+    p.add_argument("--use_bert_large_uncased", help = "use Bert large uncased rather than Flair", action="store_true")
+    p.add_argument("--use_bert_base_uncased", help = "use Bert base uncased rather than Flair", action="store_true")
+    p.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
+
     args = p.parse_args()
 
-    if use_bert:
-        if use_bert_base:
-            ner_model = load_bert_ner("dslim/bert-base-NER")
-        else:
-            ner_model = load_bert_ner("dslim/bert-large-NER")
+    use_bert_base_cased = False
+    use_bert_large_cased = False
+    use_bert_base_uncased = False
+    use_bert_large_uncased = False
+
+    if args.use_bert_base_cased:
+        ner_model = load_bert_ner("dslim/bert-base-NER")
+        use_bert_base_cased = True
+    elif args.use_bert_large_cased:
+        ner_model = load_bert_ner("dslim/bert-large-NER")
+        use_bert_large_cased = True
+    elif args.use_bert_base_uncased:
+        ner_model = load_bert_ner("dslim/bert-base-NER-uncased")
+        use_bert_base_uncased = True
+    elif args.use_bert_large_uncased:
+        ner_model = load_bert_ner("Jorgeutd/bert-large-uncased-finetuned-ner")
+        use_bert_large_uncased = True
     else:
         ner_model = load_flair_ner(args.ner_model)
+
+    process_sentences = args.process_sentences
+
     ed_model = EntityDisambiguation(
         args.base_url, args.wiki_version, {"mode": "eval", "model_path": args.ed_model}
     )
     server_address = (args.bind, args.port)
     server = HTTPServer(
         server_address,
-        make_handler(args.base_url, args.wiki_version, ed_model, ner_model, use_bert),
+        make_handler(args.base_url, 
+                     args.wiki_version, 
+                     ed_model, 
+                     ner_model, 
+                     (use_bert_base_cased or use_bert_large_cased or use_bert_base_uncased or use_bert_large_uncased), 
+                     process_sentences)
     )
 
     try:

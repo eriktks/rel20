@@ -8,6 +8,34 @@ import sys
 
 from REL.training_datasets import TrainingEvaluationDatasets
 
+def check_output(predictions, comparison_doc):
+    infile = open(comparison_doc,"r")
+    lines = infile.readlines()
+    infile.close()
+    entities = {}
+    for i in range(0, len(lines), 2):
+        entity = lines[i].strip() + "#" + lines[i+1].strip()
+        if entity in entities:
+            entities[entity] += 1
+        else:
+            entities[entity] = 1
+    for doc in predictions:
+        for entity in predictions[doc]:
+            mention = entity["mention"]
+            prediction = entity["prediction"]
+            entity = mention + "#" + prediction
+            if entity in entities and entities[entity] > 0:
+                entities[entity] -= 1
+                print("+", end=" ")
+            else:
+                print("-", end=" ")
+            print(mention, "=>", prediction)
+    for entity in entities:
+        while entities[entity] > 0:
+            entities[entity] -= 1
+            mention, prediction = entity.split("#")
+            print("M", mention, "=>", prediction)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--max_docs", help = "number of documents")
 parser.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
@@ -107,6 +135,7 @@ for i, doc in enumerate(datasets):
                 all_results[doc] = []
 
 if len(all_results) > 0:
+    #check_output(all_results, "entities-1.txt")
     evaluate_predictions.evaluate(all_results)
 
 
@@ -148,6 +177,7 @@ if not use_server:
        split_docs_value, 
        tagger_ner)
     print("MD took: {} seconds".format(round(time() - start, 2)))
+    #print("mentions_dataset", mentions_dataset)
 
     # 3. Load model.
     config = {
@@ -161,4 +191,5 @@ if not use_server:
     predictions, timing = model.predict(mentions_dataset)
     print("ED took: {} seconds".format(round(time() - start, 2)))
 
+    #check_output(predictions, "entities-2.txt")
     evaluate_predictions.evaluate(predictions)
