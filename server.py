@@ -83,6 +83,7 @@ def make_handler(base_url, wiki_version, model, tagger_ner, use_bert, process_se
 
                 text, spans = self.read_json(post_data)
                 response = self.generate_response(text, spans)
+                # print("response", len(response), response)
 
                 self.wfile.write(bytes(json.dumps(self.solve_floats(response)), "utf-8"))
             except Exception as e:
@@ -190,6 +191,7 @@ if __name__ == "__main__":
     p.add_argument("--use_bert_large_uncased", help = "use Bert large uncased rather than Flair", action="store_true")
     p.add_argument("--use_bert_base_uncased", help = "use Bert base uncased rather than Flair", action="store_true")
     p.add_argument("--process_sentences", help = "process sentences rather than documents", action="store_true")
+    p.add_argument("--split_docs_value", help = "threshold number of tokens to split document")
 
     args = p.parse_args()
 
@@ -213,6 +215,10 @@ if __name__ == "__main__":
     else:
         ner_model = load_flair_ner(args.ner_model)
 
+    split_docs_value = 0
+    if args.split_docs_value:
+        split_docs_value = int(args.split_docs_value)
+
     process_sentences = args.process_sentences
 
     ed_model = EntityDisambiguation(
@@ -226,7 +232,8 @@ if __name__ == "__main__":
                      ed_model, 
                      ner_model, 
                      (use_bert_base_cased or use_bert_large_cased or use_bert_base_uncased or use_bert_large_uncased), 
-                     process_sentences)
+                     process_sentences,
+                     split_docs_value)
     )
 
     try:
