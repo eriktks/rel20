@@ -14,10 +14,10 @@ Class/function combination that is used to setup an API that can be used for e.g
 """
 
 
-def make_handler(base_url, wiki_version, model, tagger_ner, use_bert, process_sentences, split_docs_value=0):
+def make_handler(base_url, wiki_version, ed_model, tagger_ner, use_bert, process_sentences, split_docs_value=0):
     class GetHandler(BaseHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
-            self.model = model
+            self.ed_model = ed_model
             self.tagger_ner = tagger_ner
             self.use_bert = use_bert
             self.process_sentences = process_sentences
@@ -83,7 +83,12 @@ def make_handler(base_url, wiki_version, model, tagger_ner, use_bert, process_se
 
                 text, spans = self.read_json(post_data)
                 response = self.generate_response(text, spans)
-                # print("response", len(response), response)
+                #if len(response) == 21: # and response[0][2] == "GENEVA":
+                #    print("response", len(response), response)
+                #else:
+                #    print("response", len(response))
+                #    response = []
+                print("response", len(response))
 
                 self.wfile.write(bytes(json.dumps(self.solve_floats(response)), "utf-8"))
             except Exception as e:
@@ -151,7 +156,7 @@ def make_handler(base_url, wiki_version, model, tagger_ner, use_bert, process_se
                 )
 
             # Disambiguation
-            predictions, timing = self.model.predict(mentions_dataset)
+            predictions, timing = self.ed_model.predict(mentions_dataset)
 
             # Process result.
             result = process_results(

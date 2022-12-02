@@ -171,7 +171,8 @@ if not use_server:
         tagger_ner = SequenceTagger.load("ner-fast")
 
     start = time()
-    mentions_dataset, n_mentions = mention_detection.find_mentions(docs, 
+    mentions_dataset, n_mentions = mention_detection.find_mentions(
+       docs, 
        (use_bert_base_cased or use_bert_large_cased or use_bert_base_uncased or use_bert_large_uncased), 
        process_sentences, 
        split_docs_value, 
@@ -184,11 +185,11 @@ if not use_server:
         "mode": "eval",
         "model_path": "{}/{}/generated/model".format(base_url, wiki_version),
     }
-    model = EntityDisambiguation(base_url, wiki_version, config)
+    ed_model = EntityDisambiguation(base_url, wiki_version, config)
 
     # 4. Entity disambiguation.
     start = time()
-    predictions, timing = model.predict(mentions_dataset)
+    predictions, timing = ed_model.predict(mentions_dataset)
     print("ED took: {} seconds".format(round(time() - start, 2)))
 
     #check_output(predictions, "entities-2.txt")
