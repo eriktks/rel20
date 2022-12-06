@@ -1,4 +1,6 @@
 import re
+import sys
+from termcolor import colored
 from flair.data import Sentence
 from flair.models import SequenceTagger
 from transformers import AutoTokenizer, AutoModelForTokenClassification
@@ -66,16 +68,16 @@ class MentionDetection(MentionDetectionBase):
 
 
     def split_single(self, text):
-        sentences_as_token_lists = segmenter.process(text)
+        sentences_as_token_lists = segmenter.analyze(text)
         sentences = []
         for paragraph in sentences_as_token_lists:
             for sentence in paragraph:
                 tokens = [ str(token) for token in sentence ]
-                sentences.append("".join(tokens).strip())
+                sentences.append("".join(tokens))
         return sentences
 
 
-    def split_text(self, dataset, process_sentences, split_docs_value, tagger, is_flair=False):
+    def split_text(self, dataset, process_sentences, split_docs_value=0, tagger=None, is_flair=False):
         """
         Splits text into sentences with optional spans (format is a requirement for GERBIL usage).
         This behavior is required for the default NER-tagger, which during experiments was experienced
@@ -183,7 +185,7 @@ class MentionDetection(MentionDetectionBase):
             if texts[-1] == "":
                 texts[-1] = sentence
             else:
-                texts[-1] += " " + sentence
+                texts[-1] += sentence
             first_split_point = 0
             while len(token_lists[-1]) > split_docs_value:
                 token_lists.append(list(token_lists[-1]))
@@ -231,6 +233,9 @@ class MentionDetection(MentionDetectionBase):
                 # if is_flair:
                 # 20220607: no always include
                 offset = raw_text.find(sentence, cum_sent_length)
+                if offset < 0:
+                    print(colored(f"sentence not found in text: cannot happen: {sentence}", "red"), file=sys.stderr)
+                    offset = 0
                 entity_counter = 0
                 for entity in (
                     snt.get_spans("ner")

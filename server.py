@@ -154,6 +154,9 @@ def make_handler(base_url, wiki_version, ed_model, tagger_ner, use_bert, process
                 mentions_dataset, total_ment = self.mention_detection.find_mentions(
                     processed, self.use_bert, self.process_sentences, self.split_docs_value, self.tagger_ner
                 )
+                logfile = open("logfile", "a")
+                print(mentions_dataset, file=logfile)
+                logfile.close()
 
             # Disambiguation
             predictions, timing = self.ed_model.predict(mentions_dataset)

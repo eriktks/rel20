@@ -99,10 +99,13 @@ all_results = {}
 for i, doc in enumerate(datasets):
     sentences = []
     for x in datasets[doc]:
+        #if x["sentence"] not in sentences and ( re.search("^Russia warns", x["sentence"]) or len(sentences) > 0):
         if x["sentence"] not in sentences:
             sentences.append(x["sentence"])
-    text = ". ".join([x for x in sentences])
+    if len(sentences) == 0:
+        next
 
+    text = ". ".join([x for x in sentences])
     if len(docs) >= max_docs:
         print(f"length docs is {len(docs)}.")
         print("====================")
@@ -127,6 +130,7 @@ for i, doc in enumerate(datasets):
             print("----------------------------")
             try:
                 results_list = []
+                print("eff_test", results.json())
                 for result in results.json():
                     results_list.append({ "mention": result[2], "prediction": result[3] }) # Flair + Bert
                 all_results[doc] = results_list
