@@ -14,7 +14,7 @@ def analyze_logfile(logfile_name):
         line_json = ast.literal_eval(line.strip())
         entities.append([])
         for mention in line_json['API_DOC']:
-            entities[-1].append(str(mention["pos"]) + " " + str(mention["end_pos"]))
+            entities[-1].append(str(mention["pos"]) + " " + str(mention["end_pos"]) + " " + mention["mention"])
     return entities
 
 doc_id = -1
@@ -31,13 +31,16 @@ entities_2 = analyze_logfile(logfile_name_2)
 
 if doc_id >= 0:
     for j in range(0, len(entities_1[doc_id])):
-        print(entities_1[doc_id][j], end=" ")
-        try:
-            print(entities_2[doc_id][j])
-        except:
-            print("")
-    for j in range(len(entities_1[doc_id]), len(entities_2[doc_id])):
-        print("      ", entities_2[doc_id][j])
+        if entities_1[doc_id][j] in entities_2[doc_id]:
+            print("*", entities_1[doc_id][j])
+    print("")
+    for j in range(0, len(entities_1[doc_id])):
+        if not entities_1[doc_id][j] in entities_2[doc_id]:
+            print("1", entities_1[doc_id][j])
+    print("")
+    for j in range(0, len(entities_2[doc_id])):
+        if not entities_2[doc_id][j] in entities_1[doc_id]:
+            print("2", entities_2[doc_id][j])
 else:
     max_distance = -1
     max_i = -1
@@ -48,7 +51,7 @@ else:
                 if entities_1[i][j] in entities_2[i]:
                     found += 1
             distance = len(entities_1[i]) + len(entities_2[i]) - 2 * found
-            print(i, distance)
+            print(i, distance, len(entities_1[i]), len(entities_2[i]), found)
             if distance > max_distance:
                 max_distance = distance
                 max_i = i
